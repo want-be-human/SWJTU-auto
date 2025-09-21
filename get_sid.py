@@ -65,26 +65,32 @@ def fetch_sessions_for_date(date_str):
         print(f"[fetch_sessions] 异常: {e}")
         return None
 
-def extract_20_21_session_id(resp_json, date_str):
+def extract_target_session_ids(resp_json, date_str):
     """
-    从 weChatSessionsList 返回中提取 8号场 placeId 对应的 20:00-21:00 时段的 sessionsId
-    返回单个 id 或 None
+    从 weChatSessionsList 返回中提取 8号场 placeId 对应的目标时段的 sessionsId
+    返回字典格式：{"20:00-21:00": sessionId, "21:00-22:00": sessionId}，未找到的为 None
     """
+    result = {"20:00-21:00": None, "21:00-22:00": None}
+    
     if not resp_json:
-        return None
+        return result
+    
     # 返回通常是二维数组（按 opening period）
     for group in resp_json:
         if not isinstance(group, list):
             group = [group]
         for s in group:
             try:
-                if (s.get("placeId") == PLACE_ID_8 and
-                    s.get("openDate") == date_str and
-                    s.get("openStartTime") == "20:00:00"):
-                    return s.get("id")
+                if (s.get("placeId") == PLACE_ID_8 and s.get("openDate") == date_str):
+                    start_time = s.get("openStartTime")
+                    if start_time == "20:00:00":
+                        result["20:00-21:00"] = s.get("id")
+                    elif start_time == "21:00:00":
+                        result["21:00-22:00"] = s.get("id")
             except Exception:
                 continue
-    return None
+    
+    return result
 
 def main():
     # 校验必要配置
@@ -94,6 +100,7 @@ def main():
 
     target_date = get_target_date(2)
     print(f"[get_sid] 目标（后天）日期: {target_date}")
+    print(f"[get_sid] 使用 Token: {TOKEN[:20]}...")  # 只显示前20个字符保护隐私
     
     # 获取 sessions 列表
     print("[get_sid] 正在获取 sessions 列表...")
@@ -101,19 +108,31 @@ def main():
     
     if not resp:
         print("[get_sid] 无法获取 sessions 数据")
+        print("[get_sid] 可能原因：Token 已过期、网络问题或服务器错误")
         return
     
     # 提取目标 sessionId
-    sid = extract_20_21_session_id(resp, target_date)
+    session_ids = extract_target_session_ids(resp, target_date)
     
-    if sid:
-        print(f"[get_sid] 成功获取到 sessionId: {sid}")
-        print("[get_sid] 请将此 sessionId 复制到主文件 auto.py 中的 SESSION_ID 常量")
+    print("[get_sid] 获取结果：")
+    for time_slot, sid in session_ids.items():
+        if sid:
+            print(f"  {time_slot}: {sid}")
+        else:
+            print(f"  {time_slot}: 未找到")
+    
+    # 检查是否至少找到一个
+    found_any = any(sid for sid in session_ids.values())
+    
+    if found_any:
+        print("[get_sid] 请将需要的 sessionId 复制到主文件 auto.py 中的 SESSION_ID 常量")
+        print("[get_sid] 如果要抢 20:00-21:00，使用第一个 sessionId")
+        print("[get_sid] 如果要抢 21:00-22:00，使用第二个 sessionId")
     else:
-        print("[get_sid] 未找到目标时段的 sessionId")
+        print("[get_sid] 未找到任何目标时段的 sessionId")
         print("[get_sid] 可能原因：")
         print("  - 目标日期尚未开放预订")
-        print("  - 8号场 20:00-21:00 时段不可用")
+        print("  - 8号场目标时段不可用")
         print("  - 网络或权限问题")
 
 if __name__ == "__main__":
