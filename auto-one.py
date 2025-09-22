@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-自动定点抢：后天 8号羽毛球场次（每天 22:30:00 精确触发）
-支持同时抢多个时间段，使用硬编码的 sessionId，在触发前 1 秒开始持续下单
+自动定点抢：后天 8号羽毛球 20:00-21:00（每天 22:30:00 精确触发）
+使用硬编码的 sessionId，在触发前 1 秒开始持续下单
 """
 
 import requests
@@ -17,11 +17,7 @@ PLACE_ID_8 = "1581847774254194688"  # 8号羽毛球 placeId
 SPORT_TYPE_ID = "2"  # 羽毛球
 
 # 硬编码的 sessionId（从 get_sid.py 获取）
-# 可以设置单个 sessionId 或多个 sessionId 列表
-SESSION_IDS = [
-    "1959284626974318592",  # 20:00-21:00 时段
-    "1959284627087564800",  # 21:00-22:00 时段（取消注释以同时抢两个时段）
-]
+SESSION_ID = "1959647006350647296"  # 当前目标 sessionId
 
 # 时间点（本机系统时间）
 TRIGGER_HOUR = 22
@@ -70,19 +66,12 @@ def to_midnight_ts_ms(date_str):
     ts = int(time.mktime(dt.timetuple()) * 1000)
     return ts
 
-def reserve_session(session_ids, date_str):
-    """下单（支持单个或多个时段）。注意：orderUseDate 为整数毫秒时间戳"""
-    # 确保 session_ids 是列表格式
-    if isinstance(session_ids, str):
-        session_ids = [session_ids]
-    
-    # 构建 requestsList
-    requests_list = [{"sessionsId": sid} for sid in session_ids]
-    
+def reserve_session(session_id, date_str):
+    """下单（单时段）。注意：orderUseDate 为整数毫秒时间戳"""
     payload = {
         "number": 1,
         "orderUseDate": to_midnight_ts_ms(date_str),   # 整数（毫秒）
-        "requestsList": requests_list,
+        "requestsList": [{"sessionsId": session_id}],
         "fieldId": FIELD_ID,
         "fieldName": "犀浦羽毛球7-9号",
         "siteName": "8号羽毛球",
@@ -111,15 +100,13 @@ def find_order(order_id):
 
 def main_run_once():
     # 校验必要配置
-    if not TOKEN or not MEMBER_ID or not SESSION_IDS:
-        print("请在脚本顶部 CONFIG 区域填写 TOKEN、MEMBER_ID 和 SESSION_IDS 后重试。")
+    if not TOKEN or not MEMBER_ID or not SESSION_ID:
+        print("请在脚本顶部 CONFIG 区域填写 TOKEN、MEMBER_ID 和 SESSION_ID 后重试。")
         return
 
     target_date = get_target_date(2)
     print(f"[main] 目标（后天）日期: {target_date}")
-    print(f"[main] 使用 sessionIds: {SESSION_IDS}")
-    if len(SESSION_IDS) > 1:
-        print(f"[main] 将同时抢 {len(SESSION_IDS)} 个时间段")
+    print(f"[main] 使用 sessionId: {SESSION_ID}")
     
     # 计算开始下单的时间（触发前 1 秒）
     trigger_dt = datetime.datetime.combine(datetime.date.today(), datetime.time(TRIGGER_HOUR, TRIGGER_MINUTE, TRIGGER_SECOND))
@@ -140,7 +127,7 @@ def main_run_once():
     
     # 持续下单直到成功或已被占用
     for attempt in range(1, MAX_RESERVE_ATTEMPTS + 1):
-        status, resp = reserve_session(SESSION_IDS, target_date)
+        status, resp = reserve_session(SESSION_ID, target_date)
         print(f"[reserve attempt {attempt}] status={status} resp={resp}")
         
         # 成功下单
@@ -169,7 +156,5 @@ def main_run_once():
     print("[main] 达到最大尝试次数，下单未成功")
 
 if __name__ == "__main__":
-    print("脚本启动：将等待并在指定时间尝试抢后天 8号场次。")
-    if len(SESSION_IDS) > 1:
-        print(f"同时抢 {len(SESSION_IDS)} 个时间段")
+    print("脚本启动：将等待并在指定时间尝试抢后天 8号 20:00-21:00 场次。")
     main_run_once()
