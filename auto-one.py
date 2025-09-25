@@ -17,7 +17,7 @@ PLACE_ID_8 = "1581847774254194688"  # 8号羽毛球 placeId
 SPORT_TYPE_ID = "2"  # 羽毛球
 
 # 硬编码的 sessionId（从 get_sid.py 获取）
-SESSION_ID = "1959647006350647296"  # 当前目标 sessionId
+SESSION_ID = "1960009400918745088"  # 当前目标 sessionId
 
 # 时间点（本机系统时间）
 TRIGGER_HOUR = 22
