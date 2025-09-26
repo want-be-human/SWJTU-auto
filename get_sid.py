@@ -68,9 +68,9 @@ def fetch_sessions_for_date(date_str):
 def extract_target_session_ids(resp_json, date_str):
     """
     从 weChatSessionsList 返回中提取 8号场 placeId 对应的目标时段的 sessionsId
-    返回字典格式：{"20:00-21:00": sessionId, "21:00-22:00": sessionId}，未找到的为 None
+    返回字典格式：{"19:00-20:00": id, "20:00-21:00": id, "21:00-22:00": id}，未找到的为 None
     """
-    result = {"20:00-21:00": None, "21:00-22:00": None}
+    result = {"19:00-20:00": None, "20:00-21:00": None, "21:00-22:00": None}
     
     if not resp_json:
         return result
@@ -83,7 +83,9 @@ def extract_target_session_ids(resp_json, date_str):
             try:
                 if (s.get("placeId") == PLACE_ID_8 and s.get("openDate") == date_str):
                     start_time = s.get("openStartTime")
-                    if start_time == "20:00:00":
+                    if start_time == "19:00:00":
+                        result["19:00-20:00"] = s.get("id")
+                    elif start_time == "20:00:00":
                         result["20:00-21:00"] = s.get("id")
                     elif start_time == "21:00:00":
                         result["21:00-22:00"] = s.get("id")
@@ -126,8 +128,9 @@ def main():
     
     if found_any:
         print("[get_sid] 请将需要的 sessionId 复制到主文件 auto.py 中的 SESSION_ID 常量")
-        print("[get_sid] 如果要抢 20:00-21:00，使用第一个 sessionId")
-        print("[get_sid] 如果要抢 21:00-22:00，使用第二个 sessionId")
+        print("[get_sid] 如果要抢 19:00-20:00，使用第一个 sessionId")
+        print("[get_sid] 如果要抢 20:00-21:00，使用第二个 sessionId")
+        print("[get_sid] 如果要抢 21:00-22:00，使用第三个 sessionId")
     else:
         print("[get_sid] 未找到任何目标时段的 sessionId")
         print("[get_sid] 可能原因：")

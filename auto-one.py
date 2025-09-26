@@ -10,18 +10,18 @@ import time
 import datetime
 
 # --------------------- CONFIG ---------------------
-TOKEN = "c1fd08b5-d49a-47b2-afaa-be66b4078274"
-MEMBER_ID = "1697570245594587136"  # 替换成你的 memberId
+TOKEN = "197edf3f-f09b-4f96-8f16-995d628cdfe5"
+MEMBER_ID = "1971372266045317120"  # 替换成你的 memberId
 FIELD_ID = "1462412671863504896"  # 犀浦羽毛球馆
-PLACE_ID_8 = "1581847774254194688"  # 8号羽毛球 placeId
+PLACE_ID_8 = "1560140914774515712"  # 8号羽毛球 placeId
 SPORT_TYPE_ID = "2"  # 羽毛球
 
 # 硬编码的 sessionId（从 get_sid.py 获取）
-SESSION_ID = "1960009400918745088"  # 当前目标 sessionId
+SESSION_ID = "1961096573801734144"  # 当前目标 sessionId
 
 # 时间点（本机系统时间）
-TRIGGER_HOUR = 22
-TRIGGER_MINUTE = 30
+TRIGGER_HOUR = 8
+TRIGGER_MINUTE = 42
 TRIGGER_SECOND = 0  # 精确到秒：22:30:00
 
 # 下单策略：在触发前 1 秒开始持续下单
