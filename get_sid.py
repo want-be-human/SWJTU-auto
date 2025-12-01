@@ -7,11 +7,10 @@
 
 import requests
 import datetime
-from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
+from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER, TOKEN, MEMBER_ID
 
 # --------------------- CONFIG ---------------------
-TOKEN = "f7d9e4c8-176e-4609-9628-5f245571cc93"
-MEMBER_ID = "1697570245594587136"  # 替换成你的 memberId
+# TOKEN 和 MEMBER_ID 已移至 config.py
 
 # 从配置文件获取场地ID
 try:

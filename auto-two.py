@@ -12,8 +12,16 @@ import datetime
 from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
 
 # --------------------- CONFIG ---------------------
-TOKEN = "f7d9e4c8-176e-4609-9628-5f245571cc93"
+TOKEN = "5ff0eaa0-a09c-4fa0-9fda-ede3dc32a0c8"
 MEMBER_ID = "1697570245594587136"  # 你的 memberId（脚本里不发送到下单接口）
+
+import requests
+import time
+import datetime
+from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER, TOKEN, MEMBER_ID
+
+# --------------------- CONFIG ---------------------
+# TOKEN 和 MEMBER_ID 已移至 config.py
 
 # 从配置文件获取场地ID
 try:

@@ -13,12 +13,22 @@ import requests
 import time
 import datetime
 import json
+import socket
+import struct
 from email.utils import parsedate_to_datetime
 from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
 
+from email.utils import parsedate_to_datetime
+from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER, TOKEN, MEMBER_ID
+
 # --------------------- CONFIG ---------------------
-TOKEN = "f7d9e4c8-176e-4609-9628-5f245571cc93"
-MEMBER_ID = "1697570245594587136"  # 你的 memberId（脚本里不发送到下单接口）
+# TOKEN 和 MEMBER_ID 已移至 config.py
+
+# 务必填入从 get_sid.py 获取的ID
+SESSION_IDS = [
+    "1985014184704745472", 
+    "1985014184809603072"
+] 
 
 # 从配置文件获取场地ID
 try:
@@ -29,19 +39,14 @@ except ValueError as e:
 
 SPORT_TYPE_ID = "2"  # 羽毛球
 
-# -----------------从 get_sid.py 获取-----------------
-# 运行 get_sid.py 脚本后，将打印出的 session ID 粘贴到这里
-SESSION_IDS = [
-     "1985014184704745472", 
-    "1985014184809603072"
-] 
-# ---------------------------------------------------
-
 # 目标时间设置
-TRIGGER_HOUR = 20
-TRIGGER_MINUTE = 54
+TRIGGER_HOUR = 22
+TRIGGER_MINUTE = 30
 TRIGGER_SECOND = 0
 TARGET_ARRIVAL_OFFSET = 0.05  # 目标到达时间偏移量（秒），即希望请求在 22:30:00.050 到达
+
+# 手动时间修正 (秒) - 作为 NTP 失败时的备选
+MANUAL_OFFSET = 0.7 
 
 # API endpoints
 BASE_PREFIX = "https://zhcg.swjtu.edu.cn/onesports-gateway"
@@ -90,6 +95,40 @@ def parse_http_date(date_str):
     except Exception:
         return None
 
+def get_ntp_offset(server="ntp.aliyun.com"):
+    """
+    通过 NTP 协议获取本地时间与标准时间的偏差 (秒)
+    返回: delta (标准时间 - 本地时间)
+    """
+    TIME1970 = 2208988800
+    client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client.settimeout(3)
+    data = b'\x1b' + 47 * b'\0'
+    
+    try:
+        # 记录发送时间 t1
+        t1 = time.time()
+        client.sendto(data, (server, 123))
+        data, address = client.recvfrom(1024)
+        # 记录接收时间 t4
+        t4 = time.time()
+        
+        if data:
+            unpacked = struct.unpack('!12I', data)
+            # t2: 服务器接收时间
+            t2 = unpacked[8] - TIME1970 + float(unpacked[9]) / 2**32
+            # t3: 服务器发送时间
+            t3 = unpacked[10] - TIME1970 + float(unpacked[11]) / 2**32
+            
+            # NTP 偏移量公式: offset = ((t2 - t1) + (t3 - t4)) / 2
+            offset = ((t2 - t1) + (t3 - t4)) / 2
+            return offset
+    except Exception as e:
+        print(f"[NTP] 校准失败: {e}")
+        return None
+    finally:
+        client.close()
+
 def sync_time(session):
     """
     计算本地时间与服务器时间的差值 (delta) 和网络延迟 (latency)
@@ -99,6 +138,19 @@ def sync_time(session):
     deltas = []
     latencies = []
     
+    # 1. 先通过 NTP 获取精确的时间偏差 (替代 time.is)
+    print("[sync] 正在连接 NTP 服务器 (ntp.aliyun.com) 自动计算时间偏差...")
+    ntp_offset = get_ntp_offset()
+    
+    if ntp_offset is not None:
+        avg_delta = ntp_offset
+        print(f"[sync] NTP 校准成功。本地比标准时间 {'慢' if avg_delta > 0 else '快'} {abs(avg_delta):.3f}s")
+    else:
+        avg_delta = MANUAL_OFFSET
+        print(f"[sync] NTP 校准失败，回退使用手动偏移量: {avg_delta}s")
+
+    # 2. 测量与学校服务器的网络延迟
+    print("[sync] 正在测量与学校服务器的网络延迟...")
     # 构造一个轻量级的 payload 用于时间查询
     payload = {
         "fieldId": FIELD_ID,
@@ -114,79 +166,33 @@ def sync_time(session):
             t_end = time.time()
             
             latency = (t_end - t_start) / 2.0 # 单向延迟估算
-            
-            server_date_str = resp.headers.get('Date')
-            if server_date_str:
-                server_ts = parse_http_date(server_date_str)
-                # 服务器时间是收到请求并处理完的时间，近似等于 t_end - latency
-                # 但 HTTP Date 只精确到秒，所以这种计算有误差，我们主要用它来对齐秒级
-                # 更精确的做法是假设服务器时间在 t_start + latency 时刻是 server_ts
-                # 但由于 server_ts 是整秒，我们取中间值优化
+            latencies.append(latency)
+            print(f"  [sample {i+1}] Latency: {latency*1000:.1f}ms")
                 
-                # 这里我们采用一种简化的策略：
-                # 假设 HTTP Date 变化的那一瞬间，就是该秒的开始。
-                # 但由于我们无法捕捉那一瞬间，我们只能粗略计算。
-                
-                # 更好的策略：直接计算差值
-                # 假设服务器返回的 Date 是 T_server (秒)
-                # 本地当前时间是 T_local (秒)
-                # 差值 = T_server - T_local
-                # 但 T_server 是截断的整秒，这会导致最大 1秒的误差。
-                
-                # 鉴于 HTTP Date 精度低，我们主要用它来判断本地时间是否快/慢了整秒数
-                # 毫秒级的对齐依赖于假设本地时钟走速准确，只差一个固定的 offset
-                
-                # 修正策略：
-                # 我们信任本地时间的毫秒部分，只用服务器时间修正“秒”级的偏差。
-                # 除非偏差巨大，否则我们认为本地时间的相对流逝是准的。
-                
-                # 实际上，对于抢票，最重要的是“相对服务器的 22:30:00”。
-                # 如果本地时间是 22:29:59.500，服务器认为是 22:30:00.500，那我们就晚了 1秒。
-                
-                # 计算 delta:
-                # 估算服务器响应时的精确时间 = server_ts (但这只是整秒)
-                # 实际上，如果服务器返回 12:40:37，那么真实时间在 12:40:37.000 到 12:40:37.999 之间。
-                # 平均取 12:40:37.500
-                
-                if server_ts is not None:
-                    estimated_server_time = server_ts + 0.5 
-                    delta = estimated_server_time - (t_end - latency) # 粗略偏差
-                    
-                    deltas.append(delta)
-                    latencies.append(latency)
-                    print(f"  [sample {i+1}] Latency: {latency*1000:.1f}ms, Server Date: {server_date_str}")
-                else:
-                    print(f"  [sample {i+1}] 无法解析服务器时间")
-            else:
-                print(f"  [sample {i+1}] 响应头中没有 Date 字段")
-                
-            time.sleep(0.5)
+            time.sleep(0.2)
         except Exception as e:
             print(f"  [sample {i+1}] 异常: {e}")
 
-    if not deltas:
-        print("[sync] 无法获取服务器时间，将使用本地时间。")
-        return 0, 0.05 # 默认延迟 50ms
-
     # 剔除最大最小值，取平均
-    if len(deltas) > 2:
-        deltas.sort()
-        avg_delta = sum(deltas[1:-1]) / (len(deltas) - 2)
+    if len(latencies) > 2:
         latencies.sort()
         avg_latency = sum(latencies[1:-1]) / (len(latencies) - 2)
-    else:
-        avg_delta = sum(deltas) / len(deltas)
+    elif latencies:
         avg_latency = sum(latencies) / len(latencies)
+    else:
+        avg_latency = 0.05 # 默认延迟 50ms
 
-    print(f"[sync] 时间校准完成。本地比服务器 {'慢' if avg_delta > 0 else '快'} {abs(avg_delta):.3f}s")
     print(f"[sync] 平均单向延迟 (Latency): {avg_latency*1000:.1f}ms")
     
     return avg_delta, avg_latency
 
 def main_sniper():
     # 校验必要配置
-    if not TOKEN or not SESSION_IDS:
-        print("请在脚本顶部 CONFIG 区域填写 TOKEN 和 SESSION_IDS 后重试。")
+    if not TOKEN:
+        print("请在配置文件 config.py 的 TOKEN 变量中填写有效的 token 后重试。")
+        return
+    if not SESSION_IDS:
+        print("请先运行 get_sid.py 获取目标时段的 sessionId，并将其填入脚本的 SESSION_IDS 列表后重试。")
         return
 
     target_date_str = get_target_date(2)
