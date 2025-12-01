@@ -7,12 +7,19 @@
 
 import requests
 import datetime
+from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
 
 # --------------------- CONFIG ---------------------
 TOKEN = "f7d9e4c8-176e-4609-9628-5f245571cc93"
 MEMBER_ID = "1697570245594587136"  # 替换成你的 memberId
-FIELD_ID = "1462412671863504896"  # 犀浦羽毛球馆
-PLACE_ID_8 = "1581847774245806080"  # 6号羽毛球 placeId
+
+# 从配置文件获取场地ID
+try:
+    FIELD_ID, PLACE_ID = get_selected_ids()
+except ValueError as e:
+    print(f"[错误] {e}")
+    exit()
+
 SPORT_TYPE_ID = "2"  # 羽毛球
 TIME1 = "19:00:00"
 TIME2 = "20:00:00"
@@ -70,7 +77,7 @@ def fetch_sessions_for_date(date_str):
 
 def extract_target_session_ids(resp_json, date_str):
     """
-    从 weChatSessionsList 返回中提取 8号场 placeId 对应的目标时段的 sessionsId
+    从 weChatSessionsList 返回中提取指定场地的目标时段的 sessionsId
     返回字典格式：{"19:00-20:00": id, "20:00-21:00": id, "21:00-22:00": id}，未找到的为 None
     """
     result = {"19:00-20:00": None, "20:00-21:00": None, "21:00-22:00": None}
@@ -84,14 +91,14 @@ def extract_target_session_ids(resp_json, date_str):
             group = [group]
         for s in group:
             try:
-                if (s.get("placeId") == PLACE_ID_8 and s.get("openDate") == date_str):
+                if (s.get("placeId") == PLACE_ID and s.get("openDate") == date_str):
                     start_time = s.get("openStartTime")
                     if start_time == TIME1:
-                        result[TIME1] = s.get("id")
+                        result["19:00-20:00"] = s.get("id")
                     elif start_time == TIME2:
-                        result[TIME2] = s.get("id")
+                        result["20:00-21:00"] = s.get("id")
                     elif start_time == TIME3:
-                        result[TIME3] = s.get("id")
+                        result["21:00-22:00"] = s.get("id")
             except Exception:
                 continue
     
@@ -105,6 +112,7 @@ def main():
 
     target_date = get_target_date(2)
     print(f"[get_sid] 目标（后天）日期: {target_date}")
+    print(f"[get_sid] 正在为校区 '{SELECTED_CAMPUS}' 的 {SELECTED_COURT_NUMBER} 号场地获取Session ID")
     print(f"[get_sid] 使用 Token: {TOKEN[:20]}...")  # 只显示前20个字符保护隐私
     
     # 获取 sessions 列表
@@ -130,7 +138,7 @@ def main():
     found_any = any(sid for sid in session_ids.values())
     
     if found_any:
-        print("[get_sid] 请将需要的 sessionId 复制到主文件 auto.py 中的 SESSION_ID 常量")
+        print("[get_sid] 请将需要的 sessionId 复制到主文件 auto-two.py 中的 SESSION_ID 常量")
         print("[get_sid] 如果要抢 19:00-20:00，使用第一个 sessionId")
         print("[get_sid] 如果要抢 20:00-21:00，使用第二个 sessionId")
         print("[get_sid] 如果要抢 21:00-22:00，使用第三个 sessionId")
@@ -138,7 +146,7 @@ def main():
         print("[get_sid] 未找到任何目标时段的 sessionId")
         print("[get_sid] 可能原因：")
         print("  - 目标日期尚未开放预订")
-        print("  - 8号场目标时段不可用")
+        print(f"  - {SELECTED_CAMPUS} 校区 {SELECTED_COURT_NUMBER} 号场地目标时段不可用")
         print("  - 网络或权限问题")
 
 if __name__ == "__main__":

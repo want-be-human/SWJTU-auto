@@ -9,23 +9,37 @@
 import requests
 import time
 import datetime
+from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
 
 # --------------------- CONFIG ---------------------
 TOKEN = "f7d9e4c8-176e-4609-9628-5f245571cc93"
 MEMBER_ID = "1697570245594587136"  # 你的 memberId（脚本里不发送到下单接口）
-FIELD_ID = "1462412671863504896"  # 犀浦羽毛球馆
-PLACE_ID_8 = "1581847774245806080"  # 6号羽毛球 placeId
+
+# 从配置文件获取场地ID
+try:
+    FIELD_ID, PLACE_ID = get_selected_ids()
+except ValueError as e:
+    print(f"[错误] {e}")
+    exit()
+
 SPORT_TYPE_ID = "2"  # 羽毛球
 
-# 硬编码的两段 sessionId（后天）
+# -----------------从 get_sid.py 获取-----------------
+# 运行 get_sid.py 脚本后，将打印出的 session ID 粘贴到这里
+# 例如:
+# SESSION_IDS = [
+#     "1984652097990172672",  # 20:00-21:00
+#     "1984652098409603072"   # 21:00-22:00
+# ]
 SESSION_IDS = [
-    "1984652097990172672",  # 20:00-21:00
-    "1984652098409603072"   # 21:00-22:00
-]
+    "1985014184704745472", 
+    "1985014184809603072"
+] # 务必填入从 get_sid.py 获取的ID
+# ---------------------------------------------------
 
 # 时间点（本机系统时间）
 TRIGGER_HOUR = 22
-TRIGGER_MINUTE = 30 
+TRIGGER_MINUTE = 30
 TRIGGER_SECOND = 0  # 精确到秒：22:30:00
 
 # 下单策略：在触发前 1 秒开始持续下单
@@ -78,8 +92,8 @@ def reserve_sessions_batch(session_ids, date_str):
         "orderUseDate": to_midnight_ts_ms(date_str),   # 整数（毫秒）
         "requestsList": requests_list,
         "fieldId": FIELD_ID,
-        "fieldName": "犀浦室内羽毛球馆",
-        "siteName": "6号羽毛球",
+        "fieldName": "犀浦室内羽毛球馆" if SELECTED_CAMPUS == 'xipu' else "九里室内羽毛球馆",
+        "siteName": f"{SELECTED_COURT_NUMBER}号羽毛球",
         "sportTypeId": SPORT_TYPE_ID,
         "sportTypeName": "羽毛球"
     }
@@ -161,5 +175,9 @@ def main_run_once():
     print("[main] 达到最大尝试次数，下单未成功")
 
 if __name__ == "__main__":
-    print("脚本启动：将等待并在指定时间尝试抢后天 8号 20:00-22:00 场次。")
-    main_run_once()
+    print(f"脚本启动：将等待并在指定时间尝试抢 '{SELECTED_CAMPUS}' 校区 {SELECTED_COURT_NUMBER} 号场地。")
+    if not SESSION_IDS:
+        print("\n[错误] SESSION_IDS 列表为空！")
+        print("请先运行 get_sid.py, 然后将获取到的 Session ID 填入 auto-two.py 的 SESSION_IDS 列表中。")
+    else:
+        main_run_once()
