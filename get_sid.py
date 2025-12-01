@@ -9,11 +9,14 @@ import requests
 import datetime
 
 # --------------------- CONFIG ---------------------
-TOKEN = "c1fd08b5-d49a-47b2-afaa-be66b4078274"
+TOKEN = "f7d9e4c8-176e-4609-9628-5f245571cc93"
 MEMBER_ID = "1697570245594587136"  # 替换成你的 memberId
 FIELD_ID = "1462412671863504896"  # 犀浦羽毛球馆
-PLACE_ID_8 = "1581847774254194688"  # 8号羽毛球 placeId
+PLACE_ID_8 = "1581847774245806080"  # 6号羽毛球 placeId
 SPORT_TYPE_ID = "2"  # 羽毛球
+TIME1 = "19:00:00"
+TIME2 = "20:00:00"
+TIME3 = "21:00:00"
 
 # API endpoints
 BASE_PREFIX = "https://zhcg.swjtu.edu.cn/onesports-gateway"
@@ -83,12 +86,12 @@ def extract_target_session_ids(resp_json, date_str):
             try:
                 if (s.get("placeId") == PLACE_ID_8 and s.get("openDate") == date_str):
                     start_time = s.get("openStartTime")
-                    if start_time == "19:00:00":
-                        result["19:00-20:00"] = s.get("id")
-                    elif start_time == "20:00:00":
-                        result["20:00-21:00"] = s.get("id")
-                    elif start_time == "21:00:00":
-                        result["21:00-22:00"] = s.get("id")
+                    if start_time == TIME1:
+                        result[TIME1] = s.get("id")
+                    elif start_time == TIME2:
+                        result[TIME2] = s.get("id")
+                    elif start_time == TIME3:
+                        result[TIME3] = s.get("id")
             except Exception:
                 continue
     

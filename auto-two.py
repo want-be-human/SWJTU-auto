@@ -11,26 +11,26 @@ import time
 import datetime
 
 # --------------------- CONFIG ---------------------
-TOKEN = "ad6561ef-71ac-4102-bafe-4fbecaeecbc5"
+TOKEN = "f7d9e4c8-176e-4609-9628-5f245571cc93"
 MEMBER_ID = "1697570245594587136"  # 你的 memberId（脚本里不发送到下单接口）
 FIELD_ID = "1462412671863504896"  # 犀浦羽毛球馆
-PLACE_ID_8 = "1581847774254194688"  # 8号羽毛球 placeId
+PLACE_ID_8 = "1581847774245806080"  # 6号羽毛球 placeId
 SPORT_TYPE_ID = "2"  # 羽毛球
 
 # 硬编码的两段 sessionId（后天）
 SESSION_IDS = [
-    "1961096581435367424",  # 20:00-21:00
-    "1961096581536030720"   # 21:00-22:00
+    "1984652097990172672",  # 20:00-21:00
+    "1984652098409603072"   # 21:00-22:00
 ]
 
 # 时间点（本机系统时间）
 TRIGGER_HOUR = 22
-TRIGGER_MINUTE = 30
+TRIGGER_MINUTE = 30 
 TRIGGER_SECOND = 0  # 精确到秒：22:30:00
 
 # 下单策略：在触发前 1 秒开始持续下单
-RESERVE_START_DELTA_SECONDS = 1    # 在触发时间前多少秒开始下单（1秒）
-RESERVE_INTERVAL = 0.08            # 下单间隔（秒）
+RESERVE_START_DELTA_SECONDS = 0.3    # 在触发时间前多少秒开始下单（0.8秒）
+RESERVE_INTERVAL = 0.1            # 下单间隔（秒）
 MAX_RESERVE_ATTEMPTS = 200         # 最大下单尝试次数
 
 # API endpoints
@@ -79,7 +79,7 @@ def reserve_sessions_batch(session_ids, date_str):
         "requestsList": requests_list,
         "fieldId": FIELD_ID,
         "fieldName": "犀浦室内羽毛球馆",
-        "siteName": "8号羽毛球",
+        "siteName": "6号羽毛球",
         "sportTypeId": SPORT_TYPE_ID,
         "sportTypeName": "羽毛球"
     }
