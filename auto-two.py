@@ -9,8 +9,7 @@ import requests
 import time
 import datetime
 from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER, SESSION_IDS
-from auth import get_auth, wait_for_token_change, need_login
-from refresh_token import validate_token
+from refresh_token import get_auth, need_login, validate_token
 
 # --------------------- CONFIG ---------------------
 # TOKEN / MEMBER_ID 已改为运行时动态获取（auth.py）
@@ -148,13 +147,11 @@ def main_run_once():
         status, resp = reserve_sessions_batch(SESSION_IDS, target_date)
         print(f"[reserve attempt {attempt}] status={status} resp={resp}")
 
-        # ---------- token 过期：等待更新后继续 ----------
+        # ---------- token 过期：提示刷新并退出 ----------
         if need_login(status, resp):
-            old_token = get_auth().token
-            print("[auth] token 已失效，请打开小程序完成一次登录/刷新，脚本将自动等待新 token 后继续…")
-            wait_for_token_change(old_token)
-            print(f"[auth] 已获取新 token，继续第 {attempt} 次尝试")
-            continue
+            print("[ERROR] token 已失效！请先运行 refresh_token.py 刷新后再重新启动本脚本。")
+            print("  python refresh_token.py")
+            return
         
         # 成功下单
         if isinstance(resp, dict) and resp.get("code") == 200 and resp.get("orderId"):

@@ -9,9 +9,7 @@
 ```
 SWJTU-auto/
 ├── config.py            # 用户配置（校区、场号、SESSION_IDS、TOKEN 兜底值）
-├── auth.py              # 认证模块（动态读取 token，支持缓存与过期等待）
-├── refresh_token.py     # Token 刷新工具（预约前运行，确保 token 有效）
-├── token_sniffer.py     # mitmproxy 插件（自动抓包捕获登录 token）
+├── refresh_token.py     # Token 刷新 & 认证模块（预约前运行，确保 token 有效）
 ├── get_sid.py           # 获取后天目标时段的 Session ID
 ├── auto-two.py          # 抢场主脚本（定时持续下单）
 ├── check.py             # 场地信息交互式查询工具
@@ -30,12 +28,6 @@ SWJTU-auto/
 
 ```bash
 pip install requests
-```
-
-如需使用自动抓包模式刷新 token（可选）：
-
-```bash
-pip install mitmproxy
 ```
 
 ### 2. 编辑配置文件
@@ -68,18 +60,15 @@ python refresh_token.py
 
 脚本会自动检查当前 token 是否有效：
 - **有效** → 提示无需刷新，直接进入第 2 步
-- **过期** → 提供两种刷新方式供你选择：
-  - **方式 1：手动输入**（默认）—— 从抓包工具（Fiddler / Charles 等）复制 token 和 userId 粘贴
-  - **方式 2：自动抓包** —— 需提前配置 mitmproxy 和手机代理
+- **过期** → 进入手动输入模式，从抓包工具（Fiddler / Charles 等）复制 token 和 userId 粘贴
 
 常用命令参数：
 
 | 命令 | 说明 |
 |------|------|
-| `python refresh_token.py` | 默认模式：检查 → 选择刷新方式 |
+| `python refresh_token.py` | 默认模式：检查 → 过期则手动输入 |
 | `python refresh_token.py --check` | 仅检查当前 token 是否有效 |
 | `python refresh_token.py --manual` | 直接进入手动输入模式 |
-| `python refresh_token.py --auto` | 直接进入自动抓包模式 |
 
 ### 第 2 步：获取 Session ID
 
@@ -140,30 +129,20 @@ python check.py
 
 ## Token 读取优先级
 
-所有脚本通过 `auth.py` 统一获取 token，优先级如下：
+所有脚本通过 `refresh_token.py` 统一获取 token，优先级如下：
 
-1. **环境变量**：`SWJTU_TOKEN` + `SWJTU_USER_ID`
-2. **auth_store.json**：由 `refresh_token.py` 或 `token_sniffer.py` 自动写入
-3. **config.py**：硬编码的 `TOKEN` / `MEMBER_ID`（兜底）
+1. **auth_store.json**：由 `refresh_token.py` 手动输入后写入
+2. **config.py**：硬编码的 `TOKEN` / `MEMBER_ID`（兜底）
 
 ---
 
-## 自动抓包模式说明（可选）
+## 如何获取 Token
 
-如果你希望全自动捕获 token（无需手动复制粘贴），可以使用 mitmproxy：
-
-```bash
-# 安装
-pip install mitmproxy
-
-# 方式一：通过 refresh_token.py 启动（推荐）
-python refresh_token.py --auto
-
-# 方式二：手动启动 sniffer
-mitmdump -p 8888 -s token_sniffer.py
-```
-
-然后将手机/模拟器的网络代理指向 `本机IP:8888`，打开微信小程序触发一次登录，token 会自动保存到 `auth_store.json`。
+1. 使用抓包工具（Fiddler / Charles / 浏览器开发者工具）
+2. 打开微信小程序，完成一次登录操作
+3. 找到请求 `weChatCreateUserAndLogin` 的响应
+4. 从响应 JSON 中复制 `token` 和 `userId` 字段
+5. 运行 `python refresh_token.py --manual` 粘贴即可
 
 ---
 
@@ -171,5 +150,4 @@ mitmdump -p 8888 -s token_sniffer.py
 
 - `auth_store.json` 包含敏感的 token 信息，已加入 `.gitignore`，**不会被提交到仓库**
 - 每次预约前**务必先运行 `refresh_token.py`**，确保 token 未过期
-- 即使在抢场过程中 token 意外过期，`auto-two.py` 也会自动暂停并等待你刷新后继续
 - Session ID 每天不同，**每次预约都需要重新运行 `get_sid.py` 获取**

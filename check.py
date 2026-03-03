@@ -9,7 +9,7 @@ import datetime
 import json
 import re
 from config import XIPU_FIELDID, JIULI_FIELDID, XIPU_PLACEID, JIULI_PLACEID
-from auth import get_auth
+from refresh_token import get_auth
 
 # --------------------- CONFIG ---------------------
 SPORT_TYPE_ID = "2"  # 羽毛球

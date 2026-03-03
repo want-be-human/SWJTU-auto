@@ -8,8 +8,7 @@
 import requests
 import datetime
 from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
-from auth import get_auth, wait_for_token_change, need_login
-from refresh_token import validate_token
+from refresh_token import get_auth, need_login, validate_token
 
 # --------------------- CONFIG ---------------------
 # TOKEN / MEMBER_ID 已改为运行时动态获取（auth.py）
@@ -79,13 +78,9 @@ def fetch_sessions_for_date(date_str, max_retries=3):
             except Exception:
                 resp_json = r.text
             if need_login(r.status_code, resp_json if isinstance(resp_json, dict) else {}):
-                old_token = get_auth().token
-                print("[auth] token 已失效，请打开小程序重新登录，脚本将自动等待新 token 后重试…")
-                wait_for_token_change(old_token)
-                auth = get_auth()
-                payload["memberId"] = auth.user_id
-                print(f"[auth] 已获取新 token，重试第 {retry + 1} 次")
-                continue
+                print("[ERROR] token 已失效！请先运行 refresh_token.py 刷新后再重新启动本脚本。")
+                print("  python refresh_token.py")
+                return None
 
             print(f"[fetch_sessions] HTTP {r.status_code} {r.text}")
             return None
