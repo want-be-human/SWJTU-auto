@@ -2,15 +2,17 @@
 # -*- coding: utf-8 -*-
 """
 专用于获取 sessionId 的脚本
-用于获取后天 8号羽毛球 20:00-21:00 时段的 sessionId
+用于获取后天指定场地的目标时段 sessionId
 """
 
 import requests
 import datetime
-from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER, TOKEN, MEMBER_ID
+from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
+from auth import get_auth, wait_for_token_change, need_login
+from refresh_token import validate_token
 
 # --------------------- CONFIG ---------------------
-# TOKEN 和 MEMBER_ID 已移至 config.py
+# TOKEN / MEMBER_ID 已改为运行时动态获取（auth.py）
 
 # 从配置文件获取场地ID
 try:
@@ -43,10 +45,11 @@ HEADERS_TEMPLATE = {
 # ---------------------------------------------------
 
 def make_headers():
+    a = get_auth()
     h = dict(HEADERS_TEMPLATE)
-    if TOKEN:
-        h["token"] = TOKEN
-        h["X-UserToken"] = TOKEN
+    h["token"] = a.token
+    h["X-UserToken"] = a.token
+    h["x-usertoken"] = a.token
     return h
 
 def get_target_date(days_ahead=2):
@@ -54,25 +57,42 @@ def get_target_date(days_ahead=2):
     d = datetime.date.today() + datetime.timedelta(days=days_ahead)
     return d.strftime("%Y-%m-%d")
 
-def fetch_sessions_for_date(date_str):
+def fetch_sessions_for_date(date_str, max_retries=3):
+    auth = get_auth()
     payload = {
         "fieldId": FIELD_ID,
         "isIndoor": "",
         "placeTypeId": "",
         "searchDate": date_str,
         "sportTypeId": SPORT_TYPE_ID,
-        "memberId": MEMBER_ID
+        "memberId": auth.user_id
     }
-    try:
-        r = requests.post(SESSIONS_LIST_URL, json=payload, headers=make_headers(), timeout=5)
-        if r.status_code == 200:
-            return r.json()
-        else:
+    for retry in range(max_retries):
+        try:
+            r = requests.post(SESSIONS_LIST_URL, json=payload, headers=make_headers(), timeout=5)
+            if r.status_code == 200:
+                return r.json()
+
+            # token 过期检测
+            try:
+                resp_json = r.json()
+            except Exception:
+                resp_json = r.text
+            if need_login(r.status_code, resp_json if isinstance(resp_json, dict) else {}):
+                old_token = get_auth().token
+                print("[auth] token 已失效，请打开小程序重新登录，脚本将自动等待新 token 后重试…")
+                wait_for_token_change(old_token)
+                auth = get_auth()
+                payload["memberId"] = auth.user_id
+                print(f"[auth] 已获取新 token，重试第 {retry + 1} 次")
+                continue
+
             print(f"[fetch_sessions] HTTP {r.status_code} {r.text}")
             return None
-    except Exception as e:
-        print(f"[fetch_sessions] 异常: {e}")
-        return None
+        except Exception as e:
+            print(f"[fetch_sessions] 异常: {e}")
+            return None
+    return None
 
 def extract_target_session_ids(resp_json, date_str):
     """
@@ -104,15 +124,19 @@ def extract_target_session_ids(resp_json, date_str):
     return result
 
 def main():
-    # 校验必要配置
-    if not TOKEN or not MEMBER_ID:
-        print("请在脚本顶部 CONFIG 区域填写 TOKEN 和 MEMBER_ID 后重试。")
+    # 验证 token 可用
+    auth = get_auth()
+    print(f"[get_sid] 当前 token: {auth.token[:8]}...  userId: {auth.user_id}")
+    print("[get_sid] 正在验证 token 是否有效…")
+    if not validate_token(auth.token, auth.user_id):
+        print("[ERROR] token 已过期！请先运行 refresh_token.py 刷新 token 后再启动本脚本。")
+        print("  python refresh_token.py")
         return
+    print("[OK] token 验证通过。")
 
     target_date = get_target_date(2)
     print(f"[get_sid] 目标（后天）日期: {target_date}")
     print(f"[get_sid] 正在为校区 '{SELECTED_CAMPUS}' 的 {SELECTED_COURT_NUMBER} 号场地获取Session ID")
-    print(f"[get_sid] 使用 Token: {TOKEN[:20]}...")  # 只显示前20个字符保护隐私
     
     # 获取 sessions 列表
     print("[get_sid] 正在获取 sessions 列表...")
@@ -137,7 +161,7 @@ def main():
     found_any = any(sid for sid in session_ids.values())
     
     if found_any:
-        print("[get_sid] 请将需要的 sessionId 复制到主文件 auto-two.py 中的 SESSION_ID 常量")
+        print("[get_sid] 请将需要的 sessionId 复制到 config.py 中的 SESSION_IDS 列表")
         print("[get_sid] 如果要抢 19:00-20:00，使用第一个 sessionId")
         print("[get_sid] 如果要抢 20:00-21:00，使用第二个 sessionId")
         print("[get_sid] 如果要抢 21:00-22:00，使用第三个 sessionId")

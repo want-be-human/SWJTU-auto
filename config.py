@@ -5,8 +5,12 @@
 """
 
 # -----------------用户配置-----------------
-# 请在这里更新您的 Token 和 Member ID
-TOKEN = "5ff0eaa0-a09c-4fa0-9fda-ede3dc32a0c8"
+# Token 和 Member ID 的读取优先级：
+#   1. 环境变量 SWJTU_TOKEN / SWJTU_USER_ID
+#   2. auth_store.json（由 token_sniffer.py 自动写入）
+#   3. 下方的硬编码值（兜底）
+# 推荐使用方式：运行 token_sniffer.py 自动捕获，无需手动维护
+TOKEN = "8e9ee70b-5409-4b25-8e63-86fb852bf959"
 MEMBER_ID = "1697570245594587136"
 
 # 运行 get_sid.py 脚本后，将打印出的 session ID 填入此处

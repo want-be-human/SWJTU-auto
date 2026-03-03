@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-硬编码版：专门抢 犀浦 8号羽毛球 20:00-22:00（后天）
-在触发前 1 秒持续下单（与之前逻辑一致）
-注意：payload 不包含 memberId，orderUseDate 为毫秒整数时间戳
+自动抢场脚本：在指定时间持续下单
+token 从 auth_store.json 动态读取，过期后自动等待更新
 """
 
 import requests
 import time
 import datetime
-from config import (
-    get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER,
-    TOKEN, MEMBER_ID, SESSION_IDS
-)
+from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER, SESSION_IDS
+from auth import get_auth, wait_for_token_change, need_login
+from refresh_token import validate_token
 
 # --------------------- CONFIG ---------------------
-# TOKEN, MEMBER_ID, SESSION_IDS 均已移至 config.py
+# TOKEN / MEMBER_ID 已改为运行时动态获取（auth.py）
+# SESSION_IDS 仍在 config.py 中配置
 
 # 从配置文件获取场地ID
 try:
@@ -56,10 +55,11 @@ HEADERS_TEMPLATE = {
 # ---------------------------------------------------
 
 def make_headers():
+    a = get_auth()
     h = dict(HEADERS_TEMPLATE)
-    if TOKEN:
-        h["token"] = TOKEN
-        h["X-UserToken"] = TOKEN
+    h["token"] = a.token
+    h["X-UserToken"] = a.token
+    h["x-usertoken"] = a.token
     return h
 
 def get_target_date(days_ahead=2):
@@ -108,15 +108,25 @@ def find_order(order_id):
 
 def main_run_once():
     # 校验必要配置
-    if not TOKEN or not SESSION_IDS:
-        print("请在脚本顶部 CONFIG 区域填写 TOKEN 和 SESSION_IDS 后重试。")
+    if not SESSION_IDS:
+        print("请先在 config.py 中填写 SESSION_IDS 后重试。")
         return
+
+    # 预先验证 token 可用
+    auth = get_auth()
+    print(f"[main] 当前 token: {auth.token[:8]}...  userId: {auth.user_id}")
+    print("[main] 正在验证 token 是否有效…")
+    if not validate_token(auth.token, auth.user_id):
+        print("[ERROR] token 已过期！请先运行 refresh_token.py 刷新 token 后再启动本脚本。")
+        print("  python refresh_token.py")
+        return
+    print("[OK] token 验证通过。")
 
     target_date = get_target_date(2)
     print(f"[main] 目标（后天）日期: {target_date}")
     print(f"[main] 使用 sessionIds: {SESSION_IDS}")
     
-    # 计算开始下单的时间（触发前 1 秒）
+    # 计算开始下单的时间（触发前 RESERVE_START_DELTA_SECONDS 秒）
     trigger_dt = datetime.datetime.combine(datetime.date.today(), datetime.time(TRIGGER_HOUR, TRIGGER_MINUTE, TRIGGER_SECOND))
     reserve_start_dt = trigger_dt - datetime.timedelta(seconds=RESERVE_START_DELTA_SECONDS)
     reserve_start_time = reserve_start_dt.timestamp()
@@ -137,6 +147,14 @@ def main_run_once():
     for attempt in range(1, MAX_RESERVE_ATTEMPTS + 1):
         status, resp = reserve_sessions_batch(SESSION_IDS, target_date)
         print(f"[reserve attempt {attempt}] status={status} resp={resp}")
+
+        # ---------- token 过期：等待更新后继续 ----------
+        if need_login(status, resp):
+            old_token = get_auth().token
+            print("[auth] token 已失效，请打开小程序完成一次登录/刷新，脚本将自动等待新 token 后继续…")
+            wait_for_token_change(old_token)
+            print(f"[auth] 已获取新 token，继续第 {attempt} 次尝试")
+            continue
         
         # 成功下单
         if isinstance(resp, dict) and resp.get("code") == 200 and resp.get("orderId"):
@@ -167,6 +185,6 @@ if __name__ == "__main__":
     print(f"脚本启动：将等待并在指定时间尝试抢 '{SELECTED_CAMPUS}' 校区 {SELECTED_COURT_NUMBER} 号场地。")
     if not SESSION_IDS:
         print("\n[错误] SESSION_IDS 列表为空！")
-        print("请先运行 get_sid.py, 然后将获取到的 Session ID 填入 auto-two.py 的 SESSION_IDS 列表中。")
+        print("请先运行 get_sid.py, 然后将获取到的 Session ID 填入 config.py 的 SESSION_IDS 列表中。")
     else:
         main_run_once()

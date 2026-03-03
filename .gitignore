@@ -1,0 +1,13 @@
+# 认证信息（含 token，不要提交到仓库）
+auth_store.json
+auth_store.tmp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# IDE
+.vscode/
+.idea/

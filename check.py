@@ -8,10 +8,8 @@ import requests
 import datetime
 import json
 import re
-from config import (
-    XIPU_FIELDID, JIULI_FIELDID, XIPU_PLACEID, JIULI_PLACEID,
-    TOKEN, MEMBER_ID
-)
+from config import XIPU_FIELDID, JIULI_FIELDID, XIPU_PLACEID, JIULI_PLACEID
+from auth import get_auth
 
 # --------------------- CONFIG ---------------------
 SPORT_TYPE_ID = "2"  # 羽毛球
@@ -34,10 +32,11 @@ HEADERS_TEMPLATE = {
 # ---------------------------------------------------
 
 def make_headers():
+    a = get_auth()
     h = dict(HEADERS_TEMPLATE)
-    if TOKEN:
-        h["token"] = TOKEN
-        h["X-UserToken"] = TOKEN
+    h["token"] = a.token
+    h["X-UserToken"] = a.token
+    h["x-usertoken"] = a.token
     return h
 
 def get_default_date(days_ahead=2):
@@ -46,13 +45,14 @@ def get_default_date(days_ahead=2):
 
 def fetch_venue_info(date_str, field_id, place_id=None, start_time_filters=None):
     """获取指定日期的场地信息"""
+    auth = get_auth()
     payload = {
         "fieldId": field_id,
         "isIndoor": "",
         "placeTypeId": "",
         "searchDate": date_str,
         "sportTypeId": SPORT_TYPE_ID,
-        "memberId": MEMBER_ID
+        "memberId": auth.user_id
     }
     
     print(f"\n[INFO] 正在查询日期: {date_str}")
