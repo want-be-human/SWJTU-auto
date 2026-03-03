@@ -9,19 +9,13 @@
 import requests
 import time
 import datetime
-from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
+from config import (
+    get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER,
+    TOKEN, MEMBER_ID, SESSION_IDS
+)
 
 # --------------------- CONFIG ---------------------
-TOKEN = "5ff0eaa0-a09c-4fa0-9fda-ede3dc32a0c8"
-MEMBER_ID = "1697570245594587136"  # 你的 memberId（脚本里不发送到下单接口）
-
-import requests
-import time
-import datetime
-from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER, TOKEN, MEMBER_ID
-
-# --------------------- CONFIG ---------------------
-# TOKEN 和 MEMBER_ID 已移至 config.py
+# TOKEN, MEMBER_ID, SESSION_IDS 均已移至 config.py
 
 # 从配置文件获取场地ID
 try:
@@ -31,19 +25,6 @@ except ValueError as e:
     exit()
 
 SPORT_TYPE_ID = "2"  # 羽毛球
-
-# -----------------从 get_sid.py 获取-----------------
-# 运行 get_sid.py 脚本后，将打印出的 session ID 粘贴到这里
-# 例如:
-# SESSION_IDS = [
-#     "1984652097990172672",  # 20:00-21:00
-#     "1984652098409603072"   # 21:00-22:00
-# ]
-SESSION_IDS = [
-    "1985014184704745472", 
-    "1985014184809603072"
-] # 务必填入从 get_sid.py 获取的ID
-# ---------------------------------------------------
 
 # 时间点（本机系统时间）
 TRIGGER_HOUR = 22

@@ -9,6 +9,17 @@
 TOKEN = "5ff0eaa0-a09c-4fa0-9fda-ede3dc32a0c8"
 MEMBER_ID = "1697570245594587136"
 
+# 运行 get_sid.py 脚本后，将打印出的 session ID 填入此处
+# 例如:
+# SESSION_IDS = [
+#     "1984652097990172672",  # 20:00-21:00
+#     "1984652098409603072"   # 21:00-22:00
+# ]
+SESSION_IDS = [
+    "1990087620800028672",
+    "1990087623945756672"
+]
+
 # -----------------犀浦校区-----------------
 # 犀浦校区羽毛球馆ID
 XIPU_FIELDID = '1462412671863504896'
@@ -50,7 +61,7 @@ SELECTED_CAMPUS = 'xipu'
 # 选择场地编号:
 # 犀浦: 1-9
 # 九里: 1-6
-SELECTED_COURT_NUMBER = 6
+SELECTED_COURT_NUMBER = 8
 
 
 def get_selected_ids():
