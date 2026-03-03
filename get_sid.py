@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-专用于获取 sessionId 的脚本
-用于获取后天指定场地的目标时段 sessionId
+获取后天指定场地的目标时段 sessionId
 """
 
 import requests
 import datetime
-from config import get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER
+from config import (get_selected_ids, SELECTED_CAMPUS, SELECTED_COURT_NUMBER,
+                    TARGET_TIMES)
 from refresh_token import get_auth, need_login, validate_token
-
-# --------------------- CONFIG ---------------------
-# TOKEN / MEMBER_ID 已改为运行时动态获取（auth.py）
 
 # 从配置文件获取场地ID
 try:
@@ -21,11 +18,6 @@ except ValueError as e:
     exit()
 
 SPORT_TYPE_ID = "2"  # 羽毛球
-TIME1 = "19:00:00"
-TIME2 = "20:00:00"
-TIME3 = "21:00:00"
-
-# API endpoints
 BASE_PREFIX = "https://zhcg.swjtu.edu.cn/onesports-gateway"
 SESSIONS_LIST_URL = BASE_PREFIX + "/wechat-c/api/wechat/memberBookController/weChatSessionsList"
 
@@ -41,7 +33,6 @@ HEADERS_TEMPLATE = {
                   "(KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36 "
                   "MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows",
 }
-# ---------------------------------------------------
 
 def make_headers():
     a = get_auth()
@@ -89,33 +80,37 @@ def fetch_sessions_for_date(date_str, max_retries=3):
             return None
     return None
 
+def _time_label(start_str: str) -> str:
+    """把 "19:00:00" 转为 "19:00-20:00" 这样的显示标签"""
+    h, m, _ = start_str.split(":")
+    end_h = int(h) + 1
+    return f"{h}:{m}-{end_h:02d}:{m}"
+
+
 def extract_target_session_ids(resp_json, date_str):
     """
     从 weChatSessionsList 返回中提取指定场地的目标时段的 sessionsId
-    返回字典格式：{"19:00-20:00": id, "20:00-21:00": id, "21:00-22:00": id}，未找到的为 None
+    根据 config.py 中的 TARGET_TIMES 动态生成时段列表。
+    返回有序字典 {"19:00-20:00": id, ...}
     """
-    result = {"19:00-20:00": None, "20:00-21:00": None, "21:00-22:00": None}
-    
+    target_set = set(TARGET_TIMES)
+    result = {_time_label(t): None for t in TARGET_TIMES}
+
     if not resp_json:
         return result
-    
-    # 返回通常是二维数组（按 opening period）
+
     for group in resp_json:
         if not isinstance(group, list):
             group = [group]
         for s in group:
             try:
-                if (s.get("placeId") == PLACE_ID and s.get("openDate") == date_str):
+                if s.get("placeId") == PLACE_ID and s.get("openDate") == date_str:
                     start_time = s.get("openStartTime")
-                    if start_time == TIME1:
-                        result["19:00-20:00"] = s.get("id")
-                    elif start_time == TIME2:
-                        result["20:00-21:00"] = s.get("id")
-                    elif start_time == TIME3:
-                        result["21:00-22:00"] = s.get("id")
+                    if start_time in target_set:
+                        result[_time_label(start_time)] = s.get("id")
             except Exception:
                 continue
-    
+
     return result
 
 def main():
@@ -157,9 +152,6 @@ def main():
     
     if found_any:
         print("[get_sid] 请将需要的 sessionId 复制到 config.py 中的 SESSION_IDS 列表")
-        print("[get_sid] 如果要抢 19:00-20:00，使用第一个 sessionId")
-        print("[get_sid] 如果要抢 20:00-21:00，使用第二个 sessionId")
-        print("[get_sid] 如果要抢 21:00-22:00，使用第三个 sessionId")
     else:
         print("[get_sid] 未找到任何目标时段的 sessionId")
         print("[get_sid] 可能原因：")
